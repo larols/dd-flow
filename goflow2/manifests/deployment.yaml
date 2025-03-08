@@ -7,7 +7,6 @@ metadata:
     app: goflow2
 spec:
   replicas: 1
-  dnsPolicy: ClusterFirst
   selector:
     matchLabels:
       app: goflow2
@@ -27,3 +26,4 @@ spec:
           ports:
             - containerPort: 2055
               protocol: UDP
+          dnsPolicy: ClusterFirst
