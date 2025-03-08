@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goflow2
+  labels:
+    app: goflow2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: goflow2
+  template:
+    metadata:
+      labels:
+        app: goflow2
+    spec:
+      containers:
+      - name: goflow2
+        image: netsampler/goflow2:latest # Or a specific tag
+        args:
+        - "-listen=:2055"
+        - "-output=stdout"
+        - "-format=json"
+        ports:
+        - containerPort: 2055
+          protocol: UDP

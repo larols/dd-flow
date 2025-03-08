@@ -1,0 +1,32 @@
+name: Deploy goflow2
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'goflow2/manifests/**'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure Kubernetes credentials
+      run: echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > kubeconfig.yaml
+      
+    - name: Set Kubernetes context
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBECONFIG_BASE64 }}
+      
+    - name: Apply goflow2 manifests
+      run: |
+        kubectl apply -f goflow2/manifests/deployment.yaml
+        kubectl apply -f goflow2/manifests/service.yaml
