@@ -6,7 +6,7 @@ metadata:
   labels:
     app: goflow2
 spec:
-  type: ClusterIP 
+  type: LoadBalancer 
   ports:
   - port: 2055
     protocol: UDP
