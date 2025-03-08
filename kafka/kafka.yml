@@ -14,6 +14,8 @@ spec:
     metadata:
       labels:
         app: kafka
+      annotations:
+        ad.datadoghq.com/kafka.logs: '[{"source":"kafka","service":"kafka"}]'
     spec:
       containers:
         - name: broker

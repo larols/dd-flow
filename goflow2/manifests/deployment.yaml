@@ -29,3 +29,5 @@ spec:
           ports:
             - containerPort: 2055
               protocol: UDP
+            - containerPort: 8080
+              protocol: TCP
