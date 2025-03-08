@@ -22,7 +22,7 @@ spec:
             - "-transport=kafka"
             - "-transport.kafka.brokers=kafka-service.kafka.svc.cluster.local:9092"
             - "-transport.kafka.topic=flows"
-            - "-format=bin"
+            - "-format=json"
           ports:
             - containerPort: 2055
               protocol: UDP
