@@ -17,12 +17,7 @@ spec:
     spec:
       containers:
       - name: goflow2
-        image: netsampler/goflow2:latest-ipfix
-        args:
-        - "-listen=ipfix://:2055"
-        - "-transport=file"
-        - "-transport.file="
-        - "-format=json"
+        image: netsampler/goflow2:latest
         ports:
         - containerPort: 2055
           protocol: UDP
