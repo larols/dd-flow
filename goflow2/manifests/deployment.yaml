@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: goflow2
-        image: netsampler/goflow2:latest
+        image: netsampler/goflow2:latest-ipfix
         args:
         - "-listen=ipfix://:2055"
         - "-transport=file"
