@@ -19,8 +19,8 @@ spec:
       - name: goflow2
         image: netsampler/goflow2:latest
         args:
-        - "-listen=:2055"
-        - "-transport=file" 
+        - "-listen=ipfix://:2055"
+        - "-transport=file"
         - "-transport.file="
         - "-format=json"
         ports:
