@@ -3,13 +3,16 @@ kind: Service
 metadata:
   name: goflow2
   namespace: dd-net
-  labels:
-    app: goflow2
 spec:
-  type: LoadBalancer 
-  ports:
-  - port: 2055
-    protocol: UDP
-    targetPort: 2055
   selector:
     app: goflow2
+  type: LoadBalancer
+  ports:
+    - name: netflow
+      protocol: UDP
+      port: 2055
+      targetPort: 2055
+    - name: metrics
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
