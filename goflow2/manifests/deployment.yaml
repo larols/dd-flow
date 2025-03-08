@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: goflow2
-  namespace: dd-net 
+  namespace: dd-net
   labels:
     app: goflow2
 spec:
@@ -20,7 +20,8 @@ spec:
         image: netsampler/goflow2:latest
         args:
         - "-listen=:2055"
-        - "-output=stdout"
+        - "-transport=file" 
+        - "-transport.file="
         - "-format=json"
         ports:
         - containerPort: 2055
