@@ -17,14 +17,10 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Decode kubeconfig
-        run: echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > kubeconfig.yaml
-
-      - name: Set Kubernetes context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: kubeconfig.yaml
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 --decode > ~/.kube/config
 
       - name: Apply goflow2 manifests
         run: |
