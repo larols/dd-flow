@@ -8,6 +8,7 @@ metadata:
 spec:
   replicas: 1
   selector:
+  dnsPolicy: ClusterFirst
     matchLabels:
       app: goflow2
   template:
