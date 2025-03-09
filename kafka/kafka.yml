@@ -15,13 +15,14 @@ spec:
       labels:
         app: kafka
       annotations:
-        ad.datadoghq.com/kafka.logs: '[{"source":"kafka","service":"kafka"}]'
+        ad.datadoghq.com/broker.logs: '[{"source":"kafka","service":"kafka"}]'
     spec:
       containers:
         - name: broker
           image: confluentinc/cp-kafka:7.0.1
           ports:
-            - containerPort: 9092
+            - name: kafka-port
+              containerPort: 9092
           env:
             - name: KAFKA_BROKER_ID
               value: "1"
@@ -52,6 +53,7 @@ spec:
   selector:
     app: kafka
   ports:
-    - protocol: TCP
+    - name: kafka
+      protocol: TCP
       port: 9092
       targetPort: 9092

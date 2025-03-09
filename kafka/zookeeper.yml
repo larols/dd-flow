@@ -14,6 +14,8 @@ spec:
     metadata:
       labels:
         app: zookeeper
+      annotations:
+        ad.datadoghq.com/zookeeper.logs: '[{"source":"zookeeper","service":"zookeeper"}]'
     spec:
       containers:
         - name: zookeeper
@@ -36,6 +38,7 @@ spec:
   selector:
     app: zookeeper
   ports:
-    - protocol: TCP
+    - name: client
+      protocol: TCP
       port: 2181
       targetPort: 2181

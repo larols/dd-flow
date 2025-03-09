@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: goflow2
-  namespace: dd-net
+  namespace: goflow2
   labels:
     app: goflow2
 spec:
