@@ -27,5 +27,6 @@ jobs:
 
       - name: Apply Envoy manifests
         run: |
+          kubectl apply -n dd-flow -f envoy/manifests/configmap.yaml --insecure-skip-tls-verify
           kubectl apply -n dd-flow -f envoy/manifests/deployment.yaml --insecure-skip-tls-verify
           kubectl apply -n dd-flow -f envoy/manifests/service.yaml --insecure-skip-tls-verify
