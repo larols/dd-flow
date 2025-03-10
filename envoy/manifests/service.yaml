@@ -11,4 +11,8 @@ spec:
       protocol: TCP
       port: 80
       targetPort: 8080
+    - name: admin
+      protocol: TCP
+      port: 9901
+      targetPort: 9901
   type: LoadBalancer

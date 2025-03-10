@@ -23,47 +23,87 @@ data:
                           domains: ["*"]
                           routes:
                             - match: { prefix: "/processor" }
-                              route: { cluster: processor }
+                              route:
+                                cluster: dd-flow-processor
+                                retry_policy:
+                                  retry_on: "5xx"
+                                  num_retries: 3
+                                  per_try_timeout: 2s
                             - match: { prefix: "/anomaly" }
-                              route: { cluster: anomaly-detector }
+                              route:
+                                cluster: dd-flow-anomaly-detector
+                                retry_policy:
+                                  retry_on: "5xx"
+                                  num_retries: 3
+                                  per_try_timeout: 2s
                             - match: { prefix: "/aggregator" }
-                              route: { cluster: aggregator }
+                              route:
+                                cluster: dd-flow-aggregator
+                                retry_policy:
+                                  retry_on: "5xx"
+                                  num_retries: 3
+                                  per_try_timeout: 2s
                     http_filters:
                       - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
       clusters:
-        - name: processor
+        - name: dd-flow-processor
           connect_timeout: 5s
           type: STRICT_DNS
           lb_policy: ROUND_ROBIN
           load_assignment:
-            cluster_name: processor
+            cluster_name: dd-flow-processor
             endpoints:
               - lb_endpoints:
                   - endpoint:
                       address:
-                        socket_address: { address: processor.dd-flow.svc.cluster.local, port_value: 5000 }
+                        socket_address: { address: dd-flow-processor.dd-flow.svc.cluster.local, port_value: 5000 }
+          health_checks:
+            - timeout: 5s
+              interval: 10s
+              unhealthy_threshold: 3
+              healthy_threshold: 3
+              tcp_health_check: {}
 
-        - name: anomaly-detector
+        - name: dd-flow-anomaly-detector
           connect_timeout: 5s
           type: STRICT_DNS
           lb_policy: ROUND_ROBIN
           load_assignment:
-            cluster_name: anomaly-detector
+            cluster_name: dd-flow-anomaly-detector
             endpoints:
               - lb_endpoints:
                   - endpoint:
                       address:
-                        socket_address: { address: anomaly-detector.dd-flow.svc.cluster.local, port_value: 5001 }
+                        socket_address: { address: dd-flow-anomaly-detector.dd-flow.svc.cluster.local, port_value: 5001 }
+          health_checks:
+            - timeout: 5s
+              interval: 10s
+              unhealthy_threshold: 3
+              healthy_threshold: 3
+              tcp_health_check: {}
 
-        - name: aggregator
+        - name: dd-flow-aggregator
           connect_timeout: 5s
           type: STRICT_DNS
           lb_policy: ROUND_ROBIN
           load_assignment:
-            cluster_name: aggregator
+            cluster_name: dd-flow-aggregator
             endpoints:
               - lb_endpoints:
                   - endpoint:
                       address:
-                        socket_address: { address: aggregator.dd-flow.svc.cluster.local, port_value: 5002 }
+                        socket_address: { address: dd-flow-aggregator.dd-flow.svc.cluster.local, port_value: 5002 }
+          health_checks:
+            - timeout: 5s
+              interval: 10s
+              unhealthy_threshold: 3
+              healthy_threshold: 3
+              tcp_health_check: {}
+
+    admin:
+      access_log_path: "/dev/null"
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
