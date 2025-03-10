@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: dd-flow
+  labels:
+    app: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+      annotations:
+        ad.datadoghq.com/api-gateway.logs: '[{"source": "envoy", "service": "api-gateway"}]'
+    spec:
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.27.0
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/envoy
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: api-gateway-config

@@ -1,0 +1,31 @@
+name: Deploy Envoy API Gateway
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'envoy/manifests/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 --decode > ~/.kube/config
+
+      - name: Apply Envoy manifests
+        run: |
+          kubectl apply -n dd-flow -f envoy/manifests/deployment.yaml --insecure-skip-tls-verify
+          kubectl apply -n dd-flow -f envoy/manifests/service.yaml --insecure-skip-tls-verify
