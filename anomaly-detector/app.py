@@ -18,7 +18,7 @@ KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service.kafka.svc.cluster.local:
 KAFKA_TOPIC = "flows"
 ANOMALY_TOPIC = "anomalies"
 
-# Model Storage
+# Model storage
 MODEL_PATH = "isolation_forest_model.pkl"
 
 # Kafka Consumer Configuration
