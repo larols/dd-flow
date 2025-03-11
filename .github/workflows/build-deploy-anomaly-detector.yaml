@@ -73,7 +73,7 @@ jobs:
 
     - name: Deploy Anomaly Detector to Kubernetes
       run: |
-        kubectl apply -f anomoly-detector/manifests/deployment.yaml --insecure-skip-tls-verify
+        kubectl apply -f anomaly-detector/manifests/deployment.yaml --insecure-skip-tls-verify
 
     - name: Mark deployment in Datadog
       run: |
