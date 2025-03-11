@@ -1,29 +1,60 @@
-from flask import Flask, request, jsonify
+from confluent_kafka import Consumer, KafkaException, KafkaError
 import logging
-
-app = Flask(__name__)
+import os
+import time
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
-@app.route("/process", methods=["POST"])
-def process_netflow():
-    """Receives NetFlow data and logs it."""
+# Kafka Configuration
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service.kafka.svc.cluster.local:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "flows")
+
+# Kafka Consumer Configuration
+consumer_conf = {
+    'bootstrap.servers': KAFKA_BROKER,
+    'group.id': 'netflow-processor-group',
+    'auto.offset.reset': 'earliest',  # Start from the beginning if no offset exists
+}
+
+def consume_kafka():
+    """Consumes NetFlow data from Kafka, counts records, and logs every 10 minutes."""
+    consumer = Consumer(consumer_conf)
+    consumer.subscribe([KAFKA_TOPIC])
+
+    logger.info(f"Processor started. Consuming messages from topic '{KAFKA_TOPIC}'")
+
+    record_count = 0
+    start_time = time.time()
+
     try:
-        netflow_data = request.get_json()
-        if not netflow_data:
-            return jsonify({"error": "Invalid NetFlow data"}), 400
-        
-        # Log received data
-        app.logger.info(f"Received NetFlow data: {netflow_data}")
+        while True:
+            msg = consumer.poll(1.0)  # Poll Kafka for new messages
+            
+            if msg is None:
+                continue
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    continue
+                else:
+                    logger.error(f"Kafka error: {msg.error()}")
+                    break
 
-        # Placeholder for processing logic
-        processed_data = {"message": "NetFlow data processed successfully"}
+            # Process NetFlow data
+            record_count += 1  # Increment flow count
 
-        return jsonify(processed_data), 200
-    except Exception as e:
-        app.logger.error(f"Error processing NetFlow data: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+            # Log every 10 minutes
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= 600:  # 600 seconds = 10 minutes
+                logger.info(f"Processed {record_count} NetFlow records in the last 10 minutes.")
+                record_count = 0  # Reset counter
+                start_time = time.time()  # Reset timer
+
+    except KafkaException as e:
+        logger.error(f"Kafka error: {e}")
+    finally:
+        consumer.close()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    consume_kafka()
