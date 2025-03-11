@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anomaly-detector
+  namespace: dd-flow
+  labels:
+    app: anomaly-detector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anomaly-detector
+  template:
+    metadata:
+      labels:
+        app: anomaly-detector
+      annotations:
+        ad.datadoghq.com/anomaly-detector.logs: '[{"source": "python", "service": "anomaly-detector"}]'
+    spec:
+      containers:
+        - name: anomaly-detector
+          image: laols/dd-flow-anomaly-detector:latest
+          ports:
+            - containerPort: 5001
+          env:
+            - name: KAFKA_BROKER
+              value: "kafka-service.kafka.svc.cluster.local:9092"
+            - name: KAFKA_TOPIC
+              value: "flows"
+            - name: ANOMALY_TOPIC
+              value: "anomalies"
+          volumeMounts:
+            - name: model-volume
+              mountPath: /app/isolation_forest_model.pkl
+      volumes:
+        - name: model-volume
+          hostPath:
+            path: /app/isolation_forest_model.pkl
+            type: File
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anomaly-detector
+  namespace: dd-flow
+spec:
+  selector:
+    app: anomaly-detector
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP
