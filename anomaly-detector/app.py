@@ -97,8 +97,10 @@ def detect_anomalies():
     # Load initial model or create a placeholder if missing
     if not os.path.exists(MODEL_PATH):
         logger.warning("No trained model found. Creating a temporary model to prevent crashes...")
+        label_encoder = LabelEncoder()
+        label_encoder.fit(['TCP', 'UDP', 'ICMP']) #Fit encoder on some dummy data.
         placeholder_model = IsolationForest(n_estimators=10, contamination=0.05, random_state=42)
-        joblib.dump((placeholder_model, LabelEncoder()), MODEL_PATH)
+        joblib.dump((placeholder_model, label_encoder), MODEL_PATH)
         logger.info("Placeholder model created.")
 
     try:
@@ -124,7 +126,11 @@ def detect_anomalies():
 
             with model_lock:
                 model, label_encoder = joblib.load(MODEL_PATH)
-                feature_vector[0, 4] = label_encoder.transform([netflow_data["proto"]])[0]
+                try:
+                    feature_vector[0, 4] = label_encoder.transform([netflow_data["proto"]])[0]
+                except ValueError as e:
+                    logger.error(f"Error transforming proto: {e}, message: {netflow_data}")
+                    continue
                 prediction = model.predict(feature_vector)
 
             if prediction[0] == -1:
