@@ -77,6 +77,11 @@ def detect_anomalies():
     global consumer
     logger.info(f"Anomaly Detector started. Consuming from topic '{KAFKA_TOPIC}'")
 
+    # Wait until the model is available
+    while not os.path.exists(MODEL_PATH):
+        logger.warning("Waiting for trained model to be available...")
+        time.sleep(10)  # Check every 10 seconds
+
     # Load initial model
     with model_lock:
         model = joblib.load(MODEL_PATH)
@@ -116,6 +121,7 @@ def detect_anomalies():
     finally:
         consumer.close()
         producer.flush()
+
 
 if __name__ == "__main__":
     # Start both threads
