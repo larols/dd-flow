@@ -101,8 +101,40 @@ def detect_anomalies():
 
     try:
         while True:
-            # rest of the detection code
-            # ...
+            msg = consumer_detect.poll(1.0)
+            if msg is None or not msg.value():
+                logger.warning("Received an empty message from Kafka. Skipping...")
+                continue
+
+            try:
+                netflow_data = json.loads(msg.value().decode('utf-8', errors='ignore'))
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON from Kafka: {e}")
+                continue
+
+            feature_vector = np.array([
+                netflow_data["bytes"],
+                netflow_data["packets"],
+                netflow_data["src_port"],
+                netflow_data["dst_port"],
+                netflow_data["proto"]
+            ]).reshape(1, -1)
+
+            with model_lock:
+                model, label_encoder = joblib.load(MODEL_PATH)
+                try:
+                    feature_vector[0, 4] = label_encoder.transform([netflow_data["proto"]])[0]
+                except ValueError as e:
+                    logger.error(f"Error transforming proto: {e}, message: {netflow_data}")
+                    continue
+                prediction = model.predict(feature_vector)
+
+            if prediction[0] == -1:
+                logger.warning(f"Anomaly Detected: {netflow_data}")
+                producer.produce(ANOMALY_TOPIC, json.dumps(netflow_data))
+            else:
+                logger.info("Normal Traffic")
+
     except KafkaException as e:
         logger.error(f"Kafka error: {e}")
     finally:
