@@ -50,7 +50,11 @@ def train_model():
         for _ in range(10000):  # Train on last 10,000 records
             msg = consumer.poll(1.0)
             if msg and not msg.error():
-                netflow_data = json.loads(msg.value())
+                try:
+                    netflow_data = json.loads(msg.value().decode('utf-8', errors='ignore'))
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to decode JSON from Kafka: {e}")
+                    return
                 messages.append(netflow_data)
 
         if messages:
