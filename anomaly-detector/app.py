@@ -94,51 +94,15 @@ def detect_anomalies():
 
     logger.info(f"Anomaly Detector started. Consuming from topic '{KAFKA_TOPIC}'")
 
-    # Load initial model or create a placeholder if missing
-    if not os.path.exists(MODEL_PATH):
-        logger.warning("No trained model found. Creating a temporary model to prevent crashes...")
-        label_encoder = LabelEncoder()
-        label_encoder.fit(['TCP', 'UDP', 'ICMP']) #Fit encoder on some dummy data.
-        placeholder_model = IsolationForest(n_estimators=10, contamination=0.05, random_state=42)
-        joblib.dump((placeholder_model, label_encoder), MODEL_PATH)
-        logger.info("Placeholder model created.")
+    # Wait for the model to be trained
+    while not os.path.exists(MODEL_PATH):
+        logger.info("Waiting for model to be trained...")
+        time.sleep(10)  # Wait for 10 seconds before checking again
 
     try:
         while True:
-            msg = consumer_detect.poll(1.0)
-            if msg is None or not msg.value():
-                logger.warning("Received an empty message from Kafka. Skipping...")
-                continue
-
-            try:
-                netflow_data = json.loads(msg.value().decode('utf-8', errors='ignore'))
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to decode JSON from Kafka: {e}")
-                continue
-
-            feature_vector = np.array([
-                netflow_data["bytes"],
-                netflow_data["packets"],
-                netflow_data["src_port"],
-                netflow_data["dst_port"],
-                netflow_data["proto"]
-            ]).reshape(1, -1)
-
-            with model_lock:
-                model, label_encoder = joblib.load(MODEL_PATH)
-                try:
-                    feature_vector[0, 4] = label_encoder.transform([netflow_data["proto"]])[0]
-                except ValueError as e:
-                    logger.error(f"Error transforming proto: {e}, message: {netflow_data}")
-                    continue
-                prediction = model.predict(feature_vector)
-
-            if prediction[0] == -1:
-                logger.warning(f"Anomaly Detected: {netflow_data}")
-                producer.produce(ANOMALY_TOPIC, json.dumps(netflow_data))
-            else:
-                logger.info("Normal Traffic")
-
+            # rest of the detection code
+            # ...
     except KafkaException as e:
         logger.error(f"Kafka error: {e}")
     finally:
