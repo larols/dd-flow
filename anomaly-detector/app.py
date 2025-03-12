@@ -112,22 +112,24 @@ def detect_anomalies():
                 logger.error(f"Failed to decode JSON from Kafka: {e}")
                 continue
 
-            feature_vector = np.array([
-                netflow_data["bytes"],
-                netflow_data["packets"],
-                netflow_data["src_port"],
-                netflow_data["dst_port"],
-                netflow_data["proto"]
-            ]).reshape(1, -1)
-
             with model_lock:
                 model, label_encoder = joblib.load(MODEL_PATH)
                 try:
-                    feature_vector[0, 4] = label_encoder.transform([netflow_data["proto"]])[0]
+                    proto_encoded = label_encoder.transform([netflow_data["proto"]])[0]
                 except ValueError as e:
                     logger.error(f"Error transforming proto: {e}, message: {netflow_data}")
                     continue
-                prediction = model.predict(feature_vector)
+
+            feature_dict = {
+                "bytes": [netflow_data["bytes"]],
+                "packets": [netflow_data["packets"]],
+                "src_port": [netflow_data["src_port"]],
+                "dst_port": [netflow_data["dst_port"]],
+                "proto": [proto_encoded]
+            }
+            feature_df = pd.DataFrame(feature_dict)
+
+            prediction = model.predict(feature_df)
 
             if prediction[0] == -1:
                 logger.warning(f"Anomaly Detected: {netflow_data}")
