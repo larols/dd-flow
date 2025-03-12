@@ -32,10 +32,10 @@ spec:
           volumeMounts:
             - name: model-volume
               mountPath: /dd-flow/isolation_forest_model.pkl
-          volumes:
-            - name: model-volume
-              persistentVolumeClaim:
-                claimName: anomaly-detector-pvc
+      volumes:
+        - name: model-volume
+          persistentVolumeClaim:
+            claimName: anomaly-detector-pvc
 
 ---
 apiVersion: v1
