@@ -134,8 +134,6 @@ def detect_anomalies():
             if prediction[0] == -1:
                 logger.warning(f"Anomaly Detected: {netflow_data}")
                 producer.produce(ANOMALY_TOPIC, json.dumps(netflow_data))
-            else:
-                logger.info("Normal Traffic")
 
     except KafkaException as e:
         logger.error(f"Kafka error: {e}")
