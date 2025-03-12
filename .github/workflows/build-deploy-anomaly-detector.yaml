@@ -74,7 +74,8 @@ jobs:
     - name: Deploy Anomaly Detector to Kubernetes
       run: |
         kubectl apply -f anomaly-detector/manifests/deployment.yaml --insecure-skip-tls-verify
-
+        kubectl apply -f anomaly-detector/manifests/pv.yaml --insecure-skip-tls-verify
+        kubectl apply -f anomaly-detector/manifests/pvc.yaml --insecure-skip-tls-verify
     - name: Mark deployment in Datadog
       run: |
         npx @datadog/datadog-ci deployment mark --env production --service anomaly-detector --revision "${{ github.sha }}"
