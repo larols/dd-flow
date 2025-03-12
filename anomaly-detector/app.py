@@ -21,21 +21,12 @@ ANOMALY_TOPIC = "anomalies"
 # Model storage
 MODEL_PATH = "isolation_forest_model.pkl"
 
-# Kafka Consumer Configuration
-consumer_conf = {
-    'bootstrap.servers': KAFKA_BROKER,
-    'group.id': 'netflow-anomaly-group',
-    'auto.offset.reset': 'earliest',
-}
-
 # Kafka Producer Configuration
 producer_conf = {
     'bootstrap.servers': KAFKA_BROKER
 }
 
-consumer = Consumer(consumer_conf)
 producer = Producer(producer_conf)
-consumer.subscribe([KAFKA_TOPIC])
 
 # Lock to ensure safe model updating
 model_lock = threading.Lock()
@@ -45,19 +36,28 @@ def train_model():
     while True:
         logger.info("Retraining Isolation Forest model with new NetFlow data...")
 
+        consumer_train = Consumer({
+            'bootstrap.servers': KAFKA_BROKER,
+            'group.id': 'netflow-train-group',
+            'auto.offset.reset': 'earliest',
+        })
+        consumer_train.subscribe([KAFKA_TOPIC])
+
         messages = []
         for _ in range(10000):  # Train on last 10,000 records
-            msg = consumer.poll(1.0)
+            msg = consumer_train.poll(1.0)
             if msg is None or not msg.value():
                 logger.warning("Received an empty message from Kafka. Skipping...")
                 continue
-            
+
             try:
                 netflow_data = json.loads(msg.value().decode('utf-8', errors='ignore'))
                 messages.append(netflow_data)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to decode JSON from Kafka: {e}")
                 continue
+
+        consumer_train.close()
 
         if messages:
             df = pd.DataFrame(messages)
@@ -78,22 +78,25 @@ def train_model():
 
 def detect_anomalies():
     """ Consumes NetFlow data and detects anomalies using the latest Isolation Forest model. """
-    global consumer
+    consumer_detect = Consumer({
+        'bootstrap.servers': KAFKA_BROKER,
+        'group.id': 'netflow-detect-group',
+        'auto.offset.reset': 'earliest',
+    })
+    consumer_detect.subscribe([KAFKA_TOPIC])
+
     logger.info(f"Anomaly Detector started. Consuming from topic '{KAFKA_TOPIC}'")
 
     # Load initial model or create a placeholder if missing
     if not os.path.exists(MODEL_PATH):
-        logger.warning("⚠️ No trained model found. Creating a temporary model to prevent crashes...")
+        logger.warning("No trained model found. Creating a temporary model to prevent crashes...")
         placeholder_model = IsolationForest(n_estimators=10, contamination=0.05, random_state=42)
         joblib.dump(placeholder_model, MODEL_PATH)
-        logger.info("✅ Placeholder model created.")
-
-    with model_lock:
-        model = joblib.load(MODEL_PATH)
+        logger.info("Placeholder model created.")
 
     try:
         while True:
-            msg = consumer.poll(1.0)
+            msg = consumer_detect.poll(1.0)
             if msg is None or not msg.value():
                 logger.warning("Received an empty message from Kafka. Skipping...")
                 continue
@@ -113,6 +116,7 @@ def detect_anomalies():
             ]).reshape(1, -1)
 
             with model_lock:
+                model = joblib.load(MODEL_PATH)
                 prediction = model.predict(feature_vector)
 
             if prediction[0] == -1:
@@ -124,7 +128,7 @@ def detect_anomalies():
     except KafkaException as e:
         logger.error(f"Kafka error: {e}")
     finally:
-        consumer.close()
+        consumer_detect.close()
         producer.flush()
 
 if __name__ == "__main__":
@@ -134,6 +138,5 @@ if __name__ == "__main__":
 
     training_thread.start()
     detection_thread.start()
-
-    training_thread.join()
-    detection_thread.join()
+    while True:
+        time.sleep(1)
