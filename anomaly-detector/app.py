@@ -45,7 +45,7 @@ def train_model():
         consumer_train.subscribe([KAFKA_TOPIC])
 
         messages = []
-        for _ in range(10000):  # Train on last 10,000 records
+        for _ in range(100000):  # Train on last 100,000 records
             msg = consumer_train.poll(1.0)
             if msg is None or not msg.value():
                 logger.warning("Received an empty message from Kafka. Skipping...")
