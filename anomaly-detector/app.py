@@ -8,6 +8,7 @@ import logging
 import threading
 import time
 from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import LabelEncoder
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -60,21 +61,27 @@ def train_model():
         consumer_train.close()
 
         if messages:
-            df = pd.DataFrame(messages)
-            features = ["bytes", "packets", "src_port", "dst_port", "proto"]
+            try:
+                df = pd.DataFrame(messages)
+                features = ["bytes", "packets", "src_port", "dst_port", "proto"]
 
-            new_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
-            new_model.fit(df[features])
+                # Label encode the 'proto' column
+                label_encoder = LabelEncoder()
+                df['proto'] = label_encoder.fit_transform(df['proto'])
 
-            with model_lock:
-                joblib.dump(new_model, MODEL_PATH)
+                new_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+                new_model.fit(df[features])
 
-            logger.info("Model retrained and updated successfully!")
+                with model_lock:
+                    joblib.dump((new_model, label_encoder), MODEL_PATH)
+
+                logger.info("Model retrained and updated successfully!")
+            except ValueError as e:
+                logger.error(f"Error during model training: {e}")
         else:
             logger.warning("No new data available for training.")
 
         time.sleep(86400)  # Sleep for 24 hours before retraining
-
 
 def detect_anomalies():
     """ Consumes NetFlow data and detects anomalies using the latest Isolation Forest model. """
@@ -91,7 +98,7 @@ def detect_anomalies():
     if not os.path.exists(MODEL_PATH):
         logger.warning("No trained model found. Creating a temporary model to prevent crashes...")
         placeholder_model = IsolationForest(n_estimators=10, contamination=0.05, random_state=42)
-        joblib.dump(placeholder_model, MODEL_PATH)
+        joblib.dump((placeholder_model, LabelEncoder()), MODEL_PATH)
         logger.info("Placeholder model created.")
 
     try:
@@ -116,7 +123,8 @@ def detect_anomalies():
             ]).reshape(1, -1)
 
             with model_lock:
-                model = joblib.load(MODEL_PATH)
+                model, label_encoder = joblib.load(MODEL_PATH)
+                feature_vector[0, 4] = label_encoder.transform([netflow_data["proto"]])[0]
                 prediction = model.predict(feature_vector)
 
             if prediction[0] == -1:
