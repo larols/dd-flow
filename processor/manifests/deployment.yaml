@@ -15,18 +15,59 @@ spec:
       labels:
         app: processor
       annotations:
-        ad.datadoghq.com/processor.logs: '[{"source": "python", "service": "processor"}]'
+        ad.datadoghq.com/processor.logs: '[{"source":"python","service":"processor"}]'
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: processor
           image: laols/dd-flow-processor:latest
-          ports:
-            - containerPort: 5000
+          # Launch through ddtrace-run to auto-instrument confluent-kafka
+          command: ["ddtrace-run","python","app.py"]
           env:
+            # --- Datadog APM/DSM ---
+            - name: DD_SERVICE
+              value: "processor"
+            - name: DD_ENV
+              value: "dev"
+            - name: DD_VERSION
+              value: "1.0.0"
+            - name: DD_DATA_STREAMS_ENABLED
+              value: "true"
+            - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_TRACE_AGENT_PORT
+              value: "8126"
+
+            # --- Kafka settings (match your broker/topic) ---
+            - name: KAFKA_BROKER
+              value: "kafka-service.kafka.svc.cluster.local:9092"
+            - name: KAFKA_TOPIC
+              value: "flows"
+            - name: KAFKA_GROUP
+              value: "netflow-processor-group"
+            - name: KAFKA_CLIENT_ID
+              value: "processor"
+
+            # Optional: keep if your image uses it elsewhere; harmless otherwise
             - name: FLASK_ENV
               value: "production"
 
+          # Modest resources to keep the pod schedulable on local clusters
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
 ---
+# Optional: not required for a background consumer (no listening port).
+# Safe to delete this Service if you don’t need to reach the pod over the network.
 apiVersion: v1
 kind: Service
 metadata:

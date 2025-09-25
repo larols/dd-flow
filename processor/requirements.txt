@@ -1,1 +1,2 @@
-confluent-kafka
+ddtrace==2.*
+confluent-kafka==2.*
