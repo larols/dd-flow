@@ -69,7 +69,7 @@ jobs:
           mkdir -p ~/.kube
           echo "${KUBECONFIG_BASE64}" | base64 -d > ~/.kube/config
           kubectl config current-context
-          kubectl version --short
+          kubectl version
         env:
           KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
 
