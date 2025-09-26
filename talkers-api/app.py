@@ -65,7 +65,7 @@ def consume_kafka():
     finally:
         consumer.close()
 
-# Start background thread
+# Start background thread - 
 threading.Thread(target=consume_kafka, daemon=True).start()
 
 # ---- FastAPI app ----

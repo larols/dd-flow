@@ -81,7 +81,7 @@ jobs:
         run: |
           kubectl apply -f talkers-api/manifests/deployment.yaml --insecure-skip-tls-verify
 
-      - name: Mark deployment in Datadog
+      - name: Mark deployment in Datadog 
         run: |
           npx @datadog/datadog-ci deployment mark --env production --service talkers-api --revision "${{ github.sha }}"
 
