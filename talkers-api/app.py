@@ -69,7 +69,7 @@ def consume_kafka():
 threading.Thread(target=consume_kafka, daemon=True).start()
 
 # ---- FastAPI app ----
-app = FastAPI(title="Talkers API", version="1.0.0")
+app = FastAPI(title="Talkers API", version="1.0.1")
 
 @app.get("/api/latest")
 def get_latest():
