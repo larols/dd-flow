@@ -1,0 +1,99 @@
+name: Build and Deploy Talkers API
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'talkers-api/**'
+      - 'talkers-api/manifests/**'
+      - '.github/workflows/deploy-talkers-api.yaml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set commit SHA for version
+        id: set_commit_sha
+        run: |
+          VERSION=$(git rev-parse --short HEAD)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image with Datadog build args
+        run: |
+          REPO_URL=$(git config --get remote.origin.url)
+          COMMIT_SHA=$(git rev-parse HEAD)
+
+          docker build -f talkers-api/Dockerfile talkers-api/ \
+            -t laols/dd-talkers-api:latest \
+            --build-arg DD_GIT_REPOSITORY_URL="$REPO_URL" \
+            --build-arg DD_GIT_COMMIT_SHA="$COMMIT_SHA" \
+            --build-arg DD_VERSION=${{ env.VERSION }}
+
+      - name: Push Docker image
+        run: |
+          docker push laols/dd-talkers-api:latest
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    timeout-minutes: 5
+    env:
+      DD_BETA_COMMANDS_ENABLED: 1
+      DD_GITHUB_JOB_NAME: Deploy talkers-api to Kubernetes
+      DD_SITE: datadoghq.eu
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBECONFIG_BASE64}" | base64 -d > ~/.kube/config
+          kubectl config current-context
+          kubectl version --short
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+
+      - name: Ensure namespace
+        run: |
+          kubectl get ns dd-flow >/dev/null 2>&1 || kubectl create ns dd-flow
+
+      - name: Deploy talkers-api to Kubernetes
+        run: |
+          kubectl apply -f talkers-api/manifests/deployment.yaml
+
+      - name: Mark deployment in Datadog
+        run: |
+          npx @datadog/datadog-ci deployment mark --env production --service talkers-api --revision "${{ github.sha }}"
+
+      - name: Track deployment in Datadog (DORA)
+        env:
+          DD_BETA_COMMANDS_ENABLED: 1
+          DD_SITE: 'datadoghq.eu'
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+        run: |
+          npx @datadog/datadog-ci dora deployment \
+            --service talkers-api \
+            --env production \
+            --started-at $(date +%s) \
+            --git-repository-url "${{ github.event.repository.html_url }}" \
+            --git-commit-sha ${{ github.sha }}

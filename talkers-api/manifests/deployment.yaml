@@ -1,32 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: processor
+  name: talkers-api
   namespace: dd-flow
   labels:
-    app: processor
+    app: talkers-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: processor
+      app: talkers-api
   template:
     metadata:
       labels:
-        app: processor
+        app: talkers-api
       annotations:
-        ad.datadoghq.com/processor.logs: '[{"source":"python","service":"processor"}]'
+        ad.datadoghq.com/talkers-api.logs: '[{"source":"python","service":"talkers-api"}]'
     spec:
       terminationGracePeriodSeconds: 30
       containers:
-        - name: processor
-          image: laols/dd-flow-processor:latest
-          # Launch through ddtrace-run to auto-instrument confluent-kafka
-          command: ["ddtrace-run","python","app.py"]
+        - name: talkers-api
+          image: laols/dd-talkers-api:latest
+          # Launch through ddtrace-run to auto-instrument FastAPI + confluent-kafka
+          command: ["ddtrace-run","uvicorn","app:app","--host","0.0.0.0","--port","8000"]
+          ports:
+            - containerPort: 8000
           env:
             # --- Datadog APM/DSM ---
             - name: DD_SERVICE
-              value: "processor"
+              value: "talkers-api"
             - name: DD_ENV
               value: "dev"
             - name: DD_VERSION
@@ -42,34 +44,30 @@ spec:
             - name: DD_TRACE_AGENT_PORT
               value: "8126"
 
-            # --- Kafka settings (match your broker/topic) ---
+            # --- Kafka settings ---
             - name: KAFKA_BROKER
               value: "kafka-service.kafka.svc.cluster.local:9092"
-            - name: KAFKA_TOPIC
-              value: "flows"
+            - name: KAFKA_IN_TOPIC
+              value: "top-talkers-10m"
             - name: KAFKA_GROUP
-              value: "netflow-processor-group"
+              value: "talkers-api-group"
             - name: KAFKA_CLIENT_ID
-              value: "processor"
-
-            # Optional: keep if your image uses it elsewhere; harmless otherwise
-            - name: FLASK_ENV
-              value: "production"
-
+              value: "talkers-api"
+            - name: KAFKA_AUTO_OFFSET_RESET
+              value: "latest"
 
 ---
-# Optional: not required for a background consumer (no listening port).
-# Safe to delete this Service if you don’t need to reach the pod over the network.
 apiVersion: v1
 kind: Service
 metadata:
-  name: processor
+  name: talkers-api
   namespace: dd-flow
 spec:
   selector:
-    app: processor
+    app: talkers-api
   ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: 5000
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
   type: ClusterIP
